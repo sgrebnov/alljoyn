@@ -2,9 +2,11 @@
 
 #include "BusObjectWrapper.h"
 #include "InterfaceWrapper.h"
+#include "MessageWrapper.h"
 #include "util.h"
 #include <string.h>
 #include <alljoyn/InterfaceDescription.h>
+#include "MethodHandlerImpl.h"
 #include <alljoyn/AllJoynStd.h>
 
 static v8::Persistent<v8::FunctionTemplate> busobject_constructor;
@@ -42,7 +44,9 @@ void BusObjectWrapper::Init () {
   tpl->SetClassName(NanNew<v8::String>("BusObject"));
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
   NODE_SET_PROTOTYPE_METHOD(tpl, "addInterface", BusObjectWrapper::AddInterfaceInternal);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "addMethodHandler", BusObjectWrapper::AddMethodHandlerInternal);
   NODE_SET_PROTOTYPE_METHOD(tpl, "signal", BusObjectWrapper::Signal);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "reply", BusObjectWrapper::Reply);
 }
 
 NAN_METHOD(BusObjectWrapper::New) {
@@ -66,6 +70,46 @@ NAN_METHOD(BusObjectWrapper::AddInterfaceInternal) {
   InterfaceWrapper* interWrapper = node::ObjectWrap::Unwrap<InterfaceWrapper>(args[0].As<v8::Object>());
   QStatus status = obj->object->AddInter(interWrapper->interface);
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+}
+
+NAN_METHOD(BusObjectWrapper::Reply) {
+  NanScope();
+  BusObjectWrapper* obj = node::ObjectWrap::Unwrap<BusObjectWrapper>(args.This());
+  
+  MessageWrapper* messageWrap = node::ObjectWrap::Unwrap<MessageWrapper>(args[0].As<v8::Object>());
+
+  if (messageWrap == NULL) {
+    printf("messageWrap == NULL\n");
+    NanReturnValue(NanNew<v8::Integer>(static_cast<int>(0)));
+  }
+
+  if (messageWrap->message == NULL) {
+    printf("messageWrap->message == NULL\n");
+    NanReturnValue(NanNew<v8::Integer>(static_cast<int>(0)));
+  }
+
+  ajn::MsgArg outArg("s", strdup(*NanUtf8String(args[1])));
+
+  QStatus status = obj->object->MethodReplyWrapper(*messageWrap->message, &outArg, 1);
+  NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+}
+
+NAN_METHOD(BusObjectWrapper::AddMethodHandlerInternal) {
+  NanScope();
+  if(args.Length() < 3){
+    return NanThrowError("BusObject.addMethodHandler requires an interface, method name and handler.");
+  }
+
+  BusObjectWrapper* obj = node::ObjectWrap::Unwrap<BusObjectWrapper>(args.This());
+
+  InterfaceWrapper* interface = node::ObjectWrap::Unwrap<InterfaceWrapper>(args[0].As<v8::Object>());
+  const ajn::InterfaceDescription::Member* methodMember = interface->interface->GetMember(*NanUtf8String(args[1]));
+
+  v8::Local<v8::Function> fn = args[2].As<v8::Function>();
+  QStatus status = obj->object->SetMethodHandler(methodMember, new NanCallback(fn));
+
+  NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+
 }
 
 NAN_METHOD(BusObjectWrapper::Signal) {
@@ -101,6 +145,19 @@ BusObjectImpl::BusObjectImpl(const char* path):ajn::BusObject(path){
 QStatus BusObjectImpl::AddInter(ajn::InterfaceDescription* interface){
     return AddInterface(*interface);
 }
+
+QStatus BusObjectImpl::SetMethodHandler(const ajn::InterfaceDescription::Member* member, NanCallback* callback){
+
+    MethodHandlerImpl* handler = new MethodHandlerImpl(callback);
+
+    return AddMethodHandler(member, static_cast<ajn::MessageReceiver::MethodHandler>(&MethodHandlerImpl::Call));
+}
+
+QStatus BusObjectImpl::MethodReplyWrapper(const ajn::Message &msg, const ajn::MsgArg *args, size_t numArgs) 
+{
+    return MethodReply(msg, args, numArgs);
+}
+
 
 BusObjectImpl::~BusObjectImpl(){
 }

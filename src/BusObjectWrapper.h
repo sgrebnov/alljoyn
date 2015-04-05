@@ -12,6 +12,9 @@ public:
     BusObjectImpl(const char* path);
     ~BusObjectImpl();
     QStatus AddInter(ajn::InterfaceDescription* interface);
+    QStatus MethodReplyWrapper(const ajn::Message &msg, const ajn::MsgArg *args, size_t numArgs);
+    QStatus SetMethodHandler(const ajn::InterfaceDescription::Member* member, NanCallback* callback);
+    void CallbackMethod(const ajn::InterfaceDescription::Member* member, ajn::Message& msg);
 };
 
 class BusObjectWrapper : public node::ObjectWrap {
@@ -20,6 +23,8 @@ class BusObjectWrapper : public node::ObjectWrap {
     static NAN_METHOD(New);
     static NAN_METHOD(AddInterfaceInternal);
     static NAN_METHOD(Signal);
+    static NAN_METHOD(AddMethodHandlerInternal);
+    static NAN_METHOD(Reply);
   public:
   	BusObjectWrapper(const char* path);
     static void Init ();

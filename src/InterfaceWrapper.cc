@@ -28,6 +28,7 @@ void InterfaceWrapper::Init () {
   tpl->SetClassName(NanNew<v8::String>("InterfaceDescription"));
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
   NODE_SET_PROTOTYPE_METHOD(tpl, "addSignal", InterfaceWrapper::AddSignal);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "addMethod", InterfaceWrapper::AddMethod);
   NODE_SET_PROTOTYPE_METHOD(tpl, "activate", InterfaceWrapper::Activate);
 }
 
@@ -55,6 +56,20 @@ NAN_METHOD(InterfaceWrapper::AddSignal) {
 
   InterfaceWrapper* wrapper = node::ObjectWrap::Unwrap<InterfaceWrapper>(args.This());
   QStatus status = wrapper->interface->AddSignal(strdup(*NanUtf8String(args[0])), strdup(*NanUtf8String(args[1])), strdup(*NanUtf8String(args[2])), annotation);
+  NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
+}
+
+NAN_METHOD(InterfaceWrapper::AddMethod) {
+  NanScope();
+  int annotation = 0;
+
+  if(args.Length() >= 5){
+    annotation = args[4]->Int32Value();
+  }
+
+  InterfaceWrapper* wrapper = node::ObjectWrap::Unwrap<InterfaceWrapper>(args.This());
+  QStatus status = wrapper->interface->AddMethod(strdup(*NanUtf8String(args[0])), strdup(*NanUtf8String(args[1])),
+    strdup(*NanUtf8String(args[2])), strdup(*NanUtf8String(args[3])), annotation);
   NanReturnValue(NanNew<v8::Integer>(static_cast<int>(status)));
 }
 

@@ -2,6 +2,7 @@
 #include <nan.h>
 #include "BusConnection.h"
 #include "InterfaceWrapper.h"
+#include "MessageWrapper.h"
 #include "BusListenerWrapper.h"
 #include "BusObjectWrapper.h"
 #include "SessionPortListenerWrapper.h"
@@ -13,6 +14,7 @@ using namespace v8;
 void init(Handle<Object> target) {
   BusConnection::Init();
   InterfaceWrapper::Init();
+  MessageWrapper::Init();
   BusListenerWrapper::Init();
   BusObjectWrapper::Init();
   SessionPortListenerWrapper::Init();
